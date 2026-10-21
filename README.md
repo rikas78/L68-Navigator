@@ -39,3 +39,7 @@ La procedura di installazione verrà documentata quando saranno stati aggiunti i
 4. Autenticazione e area personale.
 5. Percorsi guidati basati su fonti ufficiali.
 6. Test funzionali, sicurezza, privacy e deploy.
+
+## Pubblicazione
+
+Per pubblicare l'applicazione con deploy automatici dal repository GitHub, segui [`docs/DEPLOY_VERCEL.md`](docs/DEPLOY_VERCEL.md). Vercel deve essere collegato al repository dall'account del proprietario; questa autorizzazione va confermata nella dashboard Vercel.
