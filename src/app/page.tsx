@@ -16,6 +16,15 @@ export default function Home() {
   const [answers,setAnswers]=useState<Record<string,Answer>>({});
   const [checked,setChecked]=useState<string[]>([]);
   const [loaded,setLoaded]=useState(false);
+  const [guided,setGuided]=useState(false);
+  const [guideStep,setGuideStep]=useState(0);
+  const guideSteps = [
+    {title:"Apri il sito INPS",text:"Prova a usare il sito nel pannello a sinistra. Se non si apre, usa il link per aprirlo in una nuova scheda."},
+    {title:"Trova Accedi o MyINPS",text:"Cerca la voce di accesso. La posizione cambia tra computer e telefono."},
+    {title:"Scegli il tuo metodo",text:"Segui le istruzioni del servizio SPID, CIE o CNS che utilizzi. Non condividere PIN o codici."},
+    {title:"Cerca il servizio indicato",text:"Usa la ricerca INPS per trovare il servizio indicato dall’ufficio competente. Alcuni passaggi si fanno al Centro per l’impiego."},
+    {title:"Verifica prima di confermare",text:"Leggi i dati e le istruzioni con attenzione. Se qualcosa non è chiaro, fermati e chiedi assistenza."}
+  ];
 
   useEffect(()=>{
     try {
@@ -50,7 +59,8 @@ export default function Home() {
 
   return <main className="app-shell">
     <header className="topbar"><a className="brand" href="/"><span className="brand-mark">68</span><span>L68 <b>Navigator</b></span></a><span className="free-label">GRATUITO · SENZA REGISTRAZIONE</span></header>
-    <section className="hero"><div className="hero-copy"><p className="eyebrow">IL TUO PROSSIMO PASSO, CHIARO</p><h1>Troviamo la strada.<br/><span>Un passo alla volta.</span></h1><p>Rispondi alle 3 domande: la checklist qui sotto si aggiorna subito.</p><a className="start-button" href="#domande">Inizia da qui <span aria-hidden="true">↓</span></a></div><div className="hero-art" aria-hidden="true"><div className="art-circle"><span>✓</span></div><div className="art-card art-card-one"><b>01</b> Capisci da dove partire</div><div className="art-card art-card-two"><b>02</b> Segui la checklist</div></div></section>
+    <section className="hero"><div className="hero-copy"><p className="eyebrow">IL TUO PROSSIMO PASSO, CHIARO</p><h1>Troviamo la strada.<br/><span>Un passo alla volta.</span></h1><p>Rispondi alle 3 domande: la checklist qui sotto si aggiorna subito.</p><div className="hero-actions"><a className="start-button" href="#domande">Inizia da qui <span aria-hidden="true">↓</span></a><button className="guided-button" onClick={()=>{setGuided(v=>!v);setGuideStep(0);}}>{guided?"Chiudi guida":"Apri guida affiancata ↗"}</button></div></div><div className="hero-art" aria-hidden="true"><div className="art-circle"><span>✓</span></div><div className="art-card art-card-one"><b>01</b> Capisci da dove partire</div><div className="art-card art-card-two"><b>02</b> Segui la checklist</div></div></section>
+    {guided && <section className="guided-workspace" id="guida-affiancata"><div className="guided-heading"><div><p className="eyebrow">MODALITÀ ACCOMPAGNATA</p><h2>INPS + guida passo passo</h2><p>Segui le istruzioni a destra mentre consulti il sito a sinistra.</p></div><button className="reset-button" onClick={()=>setGuided(false)}>Chiudi</button></div><div className="guided-columns"><div className="inps-panel"><div className="panel-bar"><b>Sito ufficiale INPS</b><a href="https://www.inps.it/" target="_blank" rel="noreferrer">Apri in una nuova scheda ↗</a></div><iframe title="Sito ufficiale INPS" src="https://www.inps.it/" loading="lazy" /><p className="iframe-note">Se il sito non si carica qui, aprilo in una nuova scheda. Alcuni portali impediscono l’apertura incorporata.</p></div><aside className="guide-panel"><div className="guide-count">PASSAGGIO {guideStep+1} DI {guideSteps.length}</div><div className="guide-progress"><span style={{width:((guideStep+1)/guideSteps.length*100)+"%"}} /></div><h3>{guideSteps[guideStep].title}</h3><p>{guideSteps[guideStep].text}</p><div className="guide-nav"><button className="reset-button" disabled={guideStep===0} onClick={()=>setGuideStep(s=>Math.max(0,s-1))}>← Indietro</button><button className="print-button" onClick={()=>setGuideStep(s=>s===guideSteps.length-1?0:s+1)}>{guideStep===guideSteps.length-1?"Ricomincia":"Avanti →"}</button></div><a className="guide-official-link" href="https://www.inps.it/" target="_blank" rel="noreferrer">Vai al sito INPS ↗</a></aside></div></section>}
     <section className="content" id="domande">
       <div className="section-title"><span className="step-dot">1</span><div><h2>Facciamo il punto</h2><p>Scegli una risposta per ogni domanda. Le attività sotto cambiano in base alle risposte.</p></div></div>
       <div className="question-grid">{questions.map((q,i)=><fieldset className="question-card" key={q.id}><legend><span className="question-number">{String(i+1).padStart(2,"0")}</span>{q.title}</legend><div className="answer-options">{q.options.map(o=><label className={answers[q.id]===o.value?"answer-option selected":"answer-option"} key={o.value}><input type="radio" name={q.id} value={o.value} checked={answers[q.id]===o.value} onChange={()=>setAnswers(prev=>({...prev,[q.id]:o.value as Answer}))}/><span>{o.label}</span></label>)}</div></fieldset>)}</div>
