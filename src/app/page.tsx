@@ -3,189 +3,73 @@
 import { useEffect, useMemo, useState } from "react";
 
 type Answer = "yes" | "no" | "unsure";
-type Task = { id: string; title: string; why: string; where: string; link?: string; caution?: string };
-
-const baseTasks: Task[] = [
-  { id: "cpi", title: "Individua il Centro per l'impiego competente", why: "Il collocamento mirato viene gestito territorialmente: prima di recarti allo sportello, verifica quale ufficio segue il tuo Comune e come prendere appuntamento.", where: "Centro per l'impiego della tua zona", link: "https://www.lavoro.gov.it/" },
-  { id: "did", title: "Verifica la tua situazione lavorativa e la DID", why: "Chiedi al Centro per l'impiego se devi presentare o aggiornare la Dichiarazione di immediata disponibilità (DID) e quali passaggi sono necessari nel tuo caso.", where: "Centro per l'impiego / portale regionale", link: "https://www.lavoro.gov.it/" },
-  { id: "register", title: "Chiedi come iscriversi al collocamento mirato", why: "Fatti confermare i requisiti, i documenti e la procedura per l'elenco previsto dalla Legge 68/99 nella tua provincia.", where: "Ufficio Collocamento Mirato del territorio", link: "https://www.lavoro.gov.it/" },
-  { id: "cv", title: "Prepara un curriculum orientato alle competenze", why: "Raccogli esperienze, capacità, formazione e mansioni che puoi svolgere. Non è necessario inserire diagnosi o dettagli sanitari nel CV.", where: "Area personale L68 Navigator" },
-  { id: "jobs", title: "Organizza la ricerca di lavoro", why: "Definisci ruoli desiderati, distanza, orari e modalità di lavoro. Chiedi al servizio competente quali offerte o servizi di accompagnamento sono disponibili.", where: "Centro per l'impiego / servizi per il lavoro" },
-];
-
-const lombardiaTasks: Task[] = [
-  { id: "lombardia-portal", title: "Controlla i servizi ufficiali di Regione Lombardia", why: "Consulta il portale regionale per trovare le informazioni aggiornate sui servizi per il lavoro e sul collocamento mirato. Le modalità possono variare in base alla provincia.", where: "Regione Lombardia", link: "https://www.regione.lombardia.it/" },
-];
+type Task = { id: string; title: string; action: string; where: string; link?: string; detail?: string };
 
 const questions = [
-  { id: "recognition", title: "Hai già un verbale di riconoscimento dell'invalidità civile?", help: "Non serve indicare percentuali o caricare il verbale. Scegli solo la risposta che descrive la situazione.", answers: [{ value: "yes", label: "Sì, ce l'ho" }, { value: "no", label: "No, devo capire come fare" }, { value: "unsure", label: "Non so / devo verificare" }] },
-  { id: "conclusion", title: "Hai già la documentazione conclusiva utile per il collocamento mirato?", help: "Potrebbe essere chiamata Relazione conclusiva o documentazione relativa alle capacità lavorative. Il nome e il percorso da seguire vanno verificati con gli enti competenti.", answers: [{ value: "yes", label: "Sì, ce l'ho" }, { value: "no", label: "No / non l'ho mai richiesta" }, { value: "unsure", label: "Non so quale documento sia" }] },
-  { id: "registered", title: "Sei già iscritta al collocamento mirato (Legge 68/99)?", help: "Se hai un dubbio, puoi scegliere “Non so” e chiedere una verifica al Centro per l'impiego.", answers: [{ value: "yes", label: "Sì, sono già iscritta" }, { value: "no", label: "No, devo iscrivermi" }, { value: "unsure", label: "Non so / devo verificare" }] },
+  { id: "recognition", title: "Hai il verbale d'invalidità?", options: [{value:"yes",label:"Sì"},{value:"no",label:"No"},{value:"unsure",label:"Non lo so"}] },
+  { id: "conclusion", title: "Hai la documentazione per il collocamento mirato?", options: [{value:"yes",label:"Sì"},{value:"no",label:"No"},{value:"unsure",label:"Non lo so"}] },
+  { id: "registered", title: "Sei già iscritta alla Legge 68/99?", options: [{value:"yes",label:"Sì"},{value:"no",label:"No"},{value:"unsure",label:"Non lo so"}] },
 ];
-
-const answerText: Record<Answer, string> = { yes: "Sì", no: "No", unsure: "Da verificare" };
 
 export default function Home() {
   const [region, setRegion] = useState("Lombardia");
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [checked, setChecked] = useState<string[]>([]);
-  const [started, setStarted] = useState(false);
   const [loaded, setLoaded] = useState(false);
-
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem("l68navigator-v1");
-      if (saved) {
-        const data = JSON.parse(saved) as { region?: string; answers?: Record<string, Answer>; checked?: string[]; started?: boolean };
-        if (data.region) setRegion(data.region);
-        if (data.answers) setAnswers(data.answers);
-        if (data.checked) setChecked(data.checked);
-        if (data.started) setStarted(true);
-      }
-    } catch { /* local progress is optional */ }
+      const raw = localStorage.getItem("l68navigator-v2");
+      if (raw) { const d = JSON.parse(raw); setRegion(d.region || "Lombardia"); setAnswers(d.answers || {}); setChecked(d.checked || []); }
+    } catch {}
     setLoaded(true);
   }, []);
+  useEffect(() => { if (loaded) try { localStorage.setItem("l68navigator-v2", JSON.stringify({region,answers,checked})); } catch {} }, [region,answers,checked,loaded]);
 
-  useEffect(() => {
-    if (!loaded) return;
-    try {
-      window.localStorage.setItem("l68navigator-v1", JSON.stringify({ region, answers, checked, started }));
-    } catch { /* app remains usable if storage is unavailable */ }
-  }, [region, answers, checked, started, loaded]);
-
-  const tasks = useMemo(() => {
-    const items: Task[] = [];
-    const recognition = answers.recognition;
-    const conclusion = answers.conclusion;
-    const registered = answers.registered;
-    if (recognition !== "yes") items.push({
-      id: "recognition-first",
-      title: recognition === "no" ? "Informati sulla procedura di riconoscimento" : "Verifica il verbale di riconoscimento",
-      why: recognition === "no" ? "Chiedi al medico di base e all'INPS quali passaggi aggiornati sono necessari per avviare la procedura nel tuo caso." : "Prima di procedere, verifica se esiste già un verbale valido e dove recuperarlo. Non inviare documenti personali a siti non ufficiali.",
-      where: "INPS / medico di base", link: "https://www.inps.it/"
+  const tasks = useMemo<Task[]>(() => {
+    const list: Task[] = [];
+    if (answers.recognition !== "yes") list.push({
+      id:"recognition", title: answers.recognition === "no" ? "1. Informati sul verbale d'invalidità" : "1. Verifica se hai il verbale d'invalidità",
+      action: answers.recognition === "no" ? "Contatta il medico di base o l'INPS e chiedi da dove iniziare." : "Controlla i documenti che hai oppure chiedi all'INPS come verificarlo.",
+      where:"INPS", link:"https://www.inps.it/"
     });
-    if (conclusion !== "yes") items.push({
-      id: "conclusion-first",
-      title: conclusion === "no" ? "Chiedi come ottenere la documentazione conclusiva" : "Verifica quale documentazione conclusiva ti serve",
-      why: "Contatta l'ufficio competente o il servizio che ti segue per sapere quale documento è richiesto nel tuo caso, chi lo rilascia e se occorre una valutazione specifica.",
-      where: "Servizio competente / ASST / ufficio territoriale", link: "https://www.inps.it/",
-      caution: "Non tutte le procedure sono uguali: fatti confermare il documento esatto prima di fissare visite o sostenere spese."
+    if (answers.conclusion !== "yes") list.push({
+      id:"documents", title: answers.conclusion === "no" ? "2. Chiedi quale documento manca" : "2. Verifica i documenti necessari",
+      action:"Contatta il Centro per l'impiego o il servizio che ti segue. Chiedi il nome esatto del documento e chi deve rilasciarlo.",
+      where:"Centro per l'impiego / servizio competente", link:"https://www.lavoro.gov.it/",
+      detail:"Non tutte le situazioni sono uguali: prima di prenotare visite o sostenere spese, fatti confermare la procedura."
     });
-    if (registered !== "yes") items.push({
-      id: "registration-first",
-      title: registered === "no" ? "Chiedi i requisiti per l'iscrizione al collocamento mirato" : "Verifica se risulti già iscritta",
-      why: "Chiedi all'ufficio competente quali requisiti e documenti servono, se occorre la DID e come fissare l'appuntamento.",
-      where: "Centro per l'impiego / Ufficio Collocamento Mirato", link: "https://www.lavoro.gov.it/"
+    if (answers.registered !== "yes") list.push({
+      id:"registration", title: answers.registered === "no" ? "3. Chiedi come iscriverti" : "3. Verifica se sei già iscritta",
+      action:"Chiedi quali requisiti e documenti servono e come fissare un appuntamento per il collocamento mirato.",
+      where:"Centro per l'impiego – Collocamento mirato", link:"https://www.lavoro.gov.it/"
     });
-    if (region === "Lombardia") items.push(...lombardiaTasks);
-    items.push(...baseTasks.filter(t => t.id === "cv" || t.id === "jobs"));
-    return items;
-  }, [answers, region]);
+    if (region === "Lombardia") list.push({id:"region",title:"4. Apri i servizi della tua Regione",action:"Cerca le informazioni ufficiali sui servizi per il lavoro nella tua provincia.",where:"Regione Lombardia",link:"https://www.regione.lombardia.it/"});
+    list.push({id:"cv",title:"5. Prepara il curriculum",action:"Scrivi esperienze, competenze e lavori che ti interessano. Non inserire diagnosi o dettagli sanitari.",where:"Il tuo computer o telefono"});
+    list.push({id:"work",title:"6. Scegli il prossimo obiettivo",action:"Annota 2–3 lavori che vorresti fare e la zona in cui puoi lavorare.",where:"Il tuo elenco personale"});
+    return list;
+  },[answers,region]);
+  const completed = tasks.filter(t=>checked.includes(t.id)).length;
+  const progress = tasks.length ? Math.round(completed/tasks.length*100) : 0;
+  function reset(){ if(confirm("Vuoi cancellare il percorso salvato su questo dispositivo?")) {setAnswers({});setChecked([]);setRegion("Lombardia");localStorage.removeItem("l68navigator-v2");} }
 
-  const progress = tasks.length ? Math.round(tasks.filter(t => checked.includes(t.id)).length / tasks.length * 100) : 0;
-
-  function updateAnswer(id: string, value: Answer) {
-    setAnswers(prev => ({ ...prev, [id]: value }));
-  }
-  function toggleTask(id: string) {
-    setChecked(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  }
-  function reset() {
-    if (!window.confirm("Vuoi davvero cancellare le risposte e la checklist salvate su questo dispositivo?")) return;
-    setAnswers({});
-    setChecked([]);
-    setStarted(false);
-    setRegion("Lombardia");
-    window.localStorage.removeItem("l68navigator-v1");
-  }
-
-  return (
-    <main>
-      <a className="skip-link" href="#contenuto">Vai al contenuto</a>
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="L68 Navigator, pagina iniziale"><span className="brand-mark" aria-hidden="true">L68</span><span>L68 Navigator</span></a>
-        <span className="topbar-note">La tua guida pratica al collocamento mirato</span>
-      </header>
-
-      <section className="hero" id="contenuto">
-        <div className="hero-copy">
-          <p className="eyebrow">GUIDA INTERATTIVA GRATUITA</p>
-          <h1>Facciamo ordine. Un passo alla volta.</h1>
-          <p className="hero-intro">Rispondi a poche domande e ottieni una checklist di cose da verificare per orientarti tra documenti, collocamento mirato e ricerca di lavoro.</p>
-          <div className="hero-actions">
-            <button className="button button-primary" onClick={() => { setStarted(true); document.getElementById("percorso")?.scrollIntoView({ behavior: "smooth" }); }}>Inizia il mio percorso</button>
-            <a className="button button-secondary" href="#come-funziona">Come funziona</a>
-          </div>
-          <p className="notice">Non è necessario registrarsi. Le risposte restano in questo browser. Non inserire diagnosi, percentuali d'invalidità o altri dati sanitari.</p>
-        </div>
-        <aside className="welcome-card">
-          <div className="welcome-icon" aria-hidden="true">✓</div>
-          <p className="card-kicker">IL TUO SPAZIO</p>
-          <h2>Una checklist concreta.</h2>
-          <ul><li>Risposte semplici, senza moduli complicati</li><li>Passi da spuntare e riprendere in seguito</li><li>Collegamenti a siti istituzionali</li></ul>
-          <p className="small-note">Le informazioni salvate non vengono inviate a un server.</p>
-        </aside>
-      </section>
-
-      <section className="section" id="percorso">
-        <div className="section-heading">
-          <p className="eyebrow">IL TUO PERCORSO</p>
-          <h2>Costruiamo la tua checklist</h2>
-          <p>Puoi cambiare le risposte in qualsiasi momento. Se non sai una risposta, scegli “Non so”.</p>
-        </div>
-        <div className="region-panel">
-          <label htmlFor="region">In quale regione vivi?</label>
-          <select id="region" value={region} onChange={e => { setRegion(e.target.value); setStarted(true); }}>
-            <option>Lombardia</option><option>Piemonte</option><option>Veneto</option><option>Emilia-Romagna</option><option>Lazio</option><option>Toscana</option><option>Liguria</option><option>Campania</option><option>Puglia</option><option>Sicilia</option><option>Sardegna</option><option>Marche</option><option>Umbria</option><option>Abruzzo</option><option>Calabria</option><option>Basilicata</option><option>Molise</option><option>Friuli-Venezia Giulia</option><option>Trentino-Alto Adige</option><option>Valle d'Aosta</option>
-          </select>
-          <p>La regione aiuta a orientarti, ma le procedure possono cambiare anche tra province. Per ora i collegamenti regionali specifici sono disponibili solo per la Lombardia.</p>
-        </div>
-
-        <div className="question-list">
-          {questions.map((q, index) => (
-            <fieldset className="question-card" key={q.id}>
-              <legend><span className="question-number">{index + 1}</span>{q.title}</legend>
-              <p>{q.help}</p>
-              <div className="answer-options">
-                {q.answers.map(a => <label className={answers[q.id] === a.value ? "answer-option selected" : "answer-option"} key={a.value}>
-                  <input type="radio" name={q.id} value={a.value} checked={answers[q.id] === a.value} onChange={() => { updateAnswer(q.id, a.value as Answer); setStarted(true); }} />
-                  <span>{a.label}</span>
-                </label>)}
-              </div>
-            </fieldset>
-          ))}
-        </div>
-
-        <div className="checklist-heading">
-          <div><p className="eyebrow">PROSSIMI PASSI</p><h2>La tua checklist personale</h2><p>Spunta ogni attività quando l'hai completata o verificata.</p></div>
-          <div className="progress-box"><strong>{checked.filter(id => tasks.some(t => t.id === id)).length} / {tasks.length}</strong><span>passi completati</span></div>
-        </div>
-        <div className="progress-track" role="progressbar" aria-label="Avanzamento checklist" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ width: progress + "%" }} /></div>
-        <div className="task-list">
-          {tasks.map((task, index) => <article className={checked.includes(task.id) ? "task-card completed" : "task-card"} key={task.id}>
-            <label className="task-check"><input type="checkbox" checked={checked.includes(task.id)} onChange={() => toggleTask(task.id)} /><span className="task-index">{String(index + 1).padStart(2, "0")}</span><span className="task-title">{task.title}</span></label>
-            <p>{task.why}</p>
-            <p className="task-where"><strong>Dove informarti:</strong> {task.where}</p>
-            {task.caution && <p className="task-caution">{task.caution}</p>}
-            {task.link && <a className="source-link" href={task.link} target="_blank" rel="noreferrer">Apri il sito istituzionale <span aria-hidden="true">↗</span></a>}
-          </article>)}
-        </div>
-        <div className="actions-row">
-          <button className="button button-secondary" onClick={() => window.print()}>Stampa / salva in PDF</button>
-          <button className="button button-reset" onClick={reset}>Azzera il percorso</button>
-        </div>
-        <p className="saved-note" aria-live="polite">Le risposte e le spunte vengono salvate automaticamente su questo dispositivo.</p>
-      </section>
-
-      <section className="how-section" id="come-funziona">
-        <div><p className="eyebrow">IMPORTANTE</p><h2>Una guida per orientarti, non un sostituto degli uffici competenti.</h2></div>
-        <div className="principles">
-          <p><strong>Verifica prima di agire:</strong> requisiti, documenti e passaggi possono dipendere dalla tua situazione e dal territorio.</p>
-          <p><strong>Usa fonti ufficiali:</strong> INPS, Ministero del Lavoro, Regione e Centro per l'impiego competente.</p>
-          <p><strong>Proteggi la tua privacy:</strong> non inviare verbali o documenti sanitari tramite link non verificati e non condividere credenziali.</p>
-        </div>
-      </section>
-      <footer className="footer"><span>L68 Navigator</span><span>Versione iniziale interattiva · Gratuita · Nessuna registrazione</span></footer>
-    </main>
-  );
+  return <main className="app-shell">
+    <header className="topbar"><a className="brand" href="/"><span className="brand-mark">68</span><span>L68 <b>Navigator</b></span></a><span className="free-label">GRATUITO · SENZA REGISTRAZIONE</span></header>
+    <section className="hero">
+      <div className="hero-copy"><p className="eyebrow">IL TUO PROSSIMO PASSO, CHIARO</p><h1>Troviamo la strada.<br/><span>Un passo alla volta.</span></h1><p>Rispondi a 3 domande. Ti diciamo cosa fare dopo.</p><a className="start-button" href="#domande">Inizia da qui <span aria-hidden="true">↓</span></a></div>
+      <div className="hero-art" aria-hidden="true"><div className="art-circle"><span>✓</span></div><div className="art-card art-card-one"><b>01</b> Capisci da dove partire</div><div className="art-card art-card-two"><b>02</b> Segui la checklist</div></div>
+    </section>
+    <section className="content" id="domande">
+      <div className="section-title"><span className="step-dot">1</span><div><h2>Facciamo il punto</h2><p>Scegli una risposta per ogni domanda.</p></div></div>
+      <div className="question-grid">
+        {questions.map((q,i)=><fieldset className="question-card" key={q.id}><legend><span className="question-number">{String(i+1).padStart(2,"0")}</span>{q.title}</legend><div className="answer-options">{q.options.map(o=><label className={answers[q.id]===o.value?"answer-option selected":"answer-option"} key={o.value}><input type="radio" name={q.id} checked={answers[q.id]===o.value} onChange={()=>setAnswers(prev=>({...prev,[q.id]:o.value as Answer}))}/><span>{o.label}</span></label>)}</div></fieldset>)}
+      </div>
+      <div className="region-row"><label htmlFor="region">Dove vivi?</label><select id="region" value={region} onChange={e=>setRegion(e.target.value)}><option>Lombardia</option><option>Piemonte</option><option>Veneto</option><option>Emilia-Romagna</option><option>Lazio</option><option>Toscana</option><option>Liguria</option><option>Campania</option><option>Puglia</option><option>Sicilia</option><option>Sardegna</option><option>Marche</option><option>Umbria</option><option>Abruzzo</option><option>Calabria</option><option>Basilicata</option><option>Molise</option><option>Friuli-Venezia Giulia</option><option>Trentino-Alto Adige</option><option>Valle d'Aosta</option></select><span>La provincia può cambiare i passaggi: chiedi conferma all'ufficio competente.</span></div>
+      <div className="section-title next-title"><span className="step-dot purple">2</span><div><h2>Questi sono i tuoi prossimi passi</h2><p>Fai una cosa alla volta. Spunta quando hai finito.</p></div></div>
+      <div className="progress-card"><div className="progress-copy"><b>{completed} di {tasks.length}</b><span>passi completati</span></div><div className="progress-track" role="progressbar" aria-label="Avanzamento" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{width:progress+"%"}}/></div><strong>{progress}%</strong></div>
+      <div className="task-grid">{tasks.map((t,i)=><article key={t.id} className={checked.includes(t.id)?"task-card done":"task-card"}><div className="task-top"><span className="task-number">{String(i+1).padStart(2,"0")}</span><label className="task-toggle"><input type="checkbox" checked={checked.includes(t.id)} onChange={()=>setChecked(prev=>prev.includes(t.id)?prev.filter(x=>x!==t.id):[...prev,t.id])}/><span>{checked.includes(t.id)?"Fatto":"Da fare"}</span></label></div><h3>{t.title.replace(/^\d+\. /,"")}</h3><p>{t.action}</p>{t.detail&&<details><summary>Perché è importante?</summary><p>{t.detail}</p></details>}<div className="task-footer"><span>📍 {t.where}</span>{t.link&&<a href={t.link} target="_blank" rel="noreferrer">Apri sito ufficiale ↗</a>}</div></article>)}</div>
+      <div className="bottom-actions"><button className="print-button" onClick={()=>window.print()}>Stampa / salva PDF</button><button className="reset-button" onClick={reset}>Ricomincia</button></div>
+      <p className="privacy-note"><span>🔒</span> Le risposte restano su questo dispositivo. Non caricare documenti o dati sanitari.</p>
+    </section>
+    <footer><b>L68 Navigator</b><span>Una guida pratica gratuita. Verifica sempre i passaggi con gli uffici competenti.</span></footer>
+  </main>;
 }
